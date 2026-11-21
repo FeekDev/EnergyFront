@@ -36,19 +36,6 @@ function formatConsumption(value: number, unit: string) {
   return `${quantity.format(value)} ${unit}`;
 }
 
-function monthKey(iso: string) {
-  const date = new Date(iso);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(key: string) {
-  const [year, month] = key.split("-").map(Number);
-  return new Date(year, month - 1, 1).toLocaleDateString("es-CO", {
-    month: "short",
-    year: "2-digit",
-  });
-}
-
 function readId(value: { id?: number; Id?: number }) {
   return value.id ?? value.Id ?? 0;
 }
@@ -311,22 +298,6 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
     [visibles],
   );
 
-  const meses = useMemo(() => {
-    const map = new Map<string, Record<ServicioKey, number>>();
-    for (const factura of visibles) {
-      const key = monthKey(factura.fechaEmision);
-      const row = map.get(key) ?? {
-        consumoEnergiaKwh: 0,
-        consumoAcueductoM3: 0,
-        consumoAlcantarilladoM3: 0,
-        consumoGasM3: 0,
-      };
-      for (const servicio of SERVICIOS) row[servicio.key] += factura[servicio.key];
-      map.set(key, row);
-    }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [visibles]);
-
   const recomendacionesVisibles = recomendaciones.filter(
     (recomendacion) => casaId === "todas" || String(recomendacion.casaId) === casaId,
   );
@@ -452,46 +423,6 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
             </article>
           ))}
         </section>
-      </section>
-
-      <section className="grid">
-        {SERVICIOS.map((servicio) => {
-          const maxConsumo = Math.max(1, ...meses.map(([, row]) => row[servicio.key]));
-          return (
-            <article key={servicio.key} className="panel chart-card">
-              <header>
-                <h2>{servicio.label} mensual <span className="muted">({servicio.unit})</span></h2>
-              </header>
-              {loading ? (
-                <p className="empty-state" role="status">Cargando consumos…</p>
-              ) : meses.length === 0 ? (
-                <p className="empty-state">Aún no hay consumos registrados.</p>
-              ) : (
-                <div
-                  className="chart"
-                  role="img"
-                  aria-label={`${servicio.label} mensual en ${servicio.unit}`}
-                >
-                  {meses.map(([key, row]) => (
-                    <div
-                      key={key}
-                      className="bar-col"
-                      title={`${monthLabel(key)} · ${formatConsumption(row[servicio.key], servicio.unit)}`}
-                    >
-                      <div
-                        className="bar"
-                        style={{ height: `${(row[servicio.key] / maxConsumo) * 100}%` }}
-                      >
-                        <span className={servicio.key} />
-                      </div>
-                      <small>{monthLabel(key)}</small>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </article>
-          );
-        })}
       </section>
 
       <section className="panel recommendations">
