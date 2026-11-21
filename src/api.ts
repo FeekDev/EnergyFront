@@ -71,10 +71,20 @@ export function getCasas(token: string) {
   return request<Casa[]>("/api/Casa", {}, token);
 }
 
-export function crearCasa(token: string, cantidadPersonas: string) {
+export function crearCasa(
+  token: string,
+  cantidadPersonas: string,
+  numeroContrato?: string,
+) {
   return request<Casa>(
     "/api/Casa",
-    { method: "POST", body: JSON.stringify({ cantidadPersonas }) },
+    {
+      method: "POST",
+      body: JSON.stringify({
+        cantidadPersonas,
+        ...(numeroContrato ? { numeroContrato } : {}),
+      }),
+    },
     token,
   );
 }
@@ -94,8 +104,9 @@ export function getRecomendacionesTrimestrales(token: string) {
 export function crearFactura(
   token: string,
   payload: {
-    casaId: number;
+    casaId: number | null;
     numeroContrato: string;
+    cantidadPersonas?: string;
     fechaEmision: string;
     fechaPago: string | null;
     consumoAcueductoM3: number;

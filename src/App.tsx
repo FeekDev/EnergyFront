@@ -55,20 +55,25 @@ function asCasa(raw: Casa): Casa {
   const source = raw as Casa & {
     Id?: number;
     CantidadPersonas?: string;
+    NumeroContrato?: string | null;
     Direccion?: Casa["direccion"];
   };
   return {
     ...raw,
     id: readId(source),
     cantidadPersonas: raw.cantidadPersonas ?? source.CantidadPersonas ?? "",
+    numeroContrato: raw.numeroContrato ?? source.NumeroContrato ?? null,
     direccion: raw.direccion ?? source.Direccion ?? null,
   };
 }
 
 function casaLabel(casa: Casa) {
   const personas = `${casa.cantidadPersonas} pers.`;
-  if (!casa.direccion) return `Casa ${casa.id} · ${personas}`;
-  return `${casa.direccion.calle}, ${casa.direccion.ciudad} · ${personas}`;
+  const ubicacion = casa.direccion
+    ? `${casa.direccion.calle}, ${casa.direccion.ciudad}`
+    : `Casa ${casa.id}`;
+  const contrato = casa.numeroContrato ? ` · Contrato ${casa.numeroContrato}` : "";
+  return `${ubicacion} · ${personas}${contrato}`;
 }
 
 function loadSession(): Session | null {
@@ -402,7 +407,11 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
               return (
                 <article key={item.casaId} className="recommendation-house">
                   <h3>{casa ? casaLabel(casa) : `Casa ${item.casaId}`}</h3>
-                  <p className="muted">Trimestre {item.trimestre} de {item.anio}</p>
+                  <p className="muted">
+                    Trimestre {item.trimestre} de {item.anio} · {item.cantidadFacturas}{" "}
+                    {item.cantidadFacturas === 1 ? "factura" : "facturas"} ·{" "}
+                    {item.esPreliminar ? "Periodo en curso" : "Periodo cerrado"}
+                  </p>
                   <div className="recommendation-services">
                     {recomendacionServicios.map(({ key, className }) => {
                       const consumo = item[key];
@@ -504,13 +513,16 @@ function RegistroPanel({
   const [consumoGasM3, setConsumoGasM3] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const casaSeleccionada = casas.find((casa) => String(casa.id) === casaId);
 
   useEffect(() => {
-    if (!casaId && casas[0]) setCasaId(String(casas[0].id));
+    setNumeroContrato(casaSeleccionada?.numeroContrato ?? "");
   }, [casaId, casas]);
 
   async function crearNuevaCasa() {
-    const casa = asCasa(await crearCasa(token, personas.trim() || "1"));
+    const casa = asCasa(
+      await crearCasa(token, personas.trim() || "1", numeroContrato.trim() || undefined),
+    );
     setCasaId(String(casa.id));
     onCasaCreada(casa);
     return casa;
@@ -521,13 +533,10 @@ function RegistroPanel({
     setBusy(true);
     setError("");
     try {
-      let casaSeleccionada = Number(casaId);
-      if (!casaSeleccionada) {
-        casaSeleccionada = (await crearNuevaCasa()).id;
-      }
       await crearFactura(token, {
-        casaId: casaSeleccionada,
-        numeroContrato,
+        casaId: casaId ? Number(casaId) : null,
+        numeroContrato: numeroContrato.trim(),
+        ...(!casaId ? { cantidadPersonas: personas.trim() || "1" } : {}),
         fechaEmision: new Date(fechaEmision).toISOString(),
         fechaPago: fechaPago ? new Date(fechaPago).toISOString() : null,
         consumoAcueductoM3: Number(consumoAcueductoM3 || 0),
@@ -549,6 +558,14 @@ function RegistroPanel({
         <label>
           Personas
           <input value={personas} onChange={(e) => setPersonas(e.target.value)} required />
+        </label>
+        <label>
+          Número de contrato (opcional)
+          <input
+            value={numeroContrato}
+            onChange={(e) => setNumeroContrato(e.target.value)}
+            maxLength={100}
+          />
         </label>
         <button
           type="button"
@@ -572,7 +589,7 @@ function RegistroPanel({
           <label>
             Casa
             <select value={casaId} onChange={(e) => setCasaId(e.target.value)}>
-              <option value="">Se crea con el botón de la izquierda</option>
+              <option value="">Buscar o crear por número de contrato</option>
               {casas.map((casa) => (
                 <option key={casa.id} value={String(casa.id)}>
                   {casaLabel(casa)}
@@ -581,8 +598,14 @@ function RegistroPanel({
             </select>
           </label>
           <label>
-            Contrato
-            <input value={numeroContrato} onChange={(e) => setNumeroContrato(e.target.value)} required />
+            {casaSeleccionada?.numeroContrato ? "Contrato asociado" : "Contrato"}
+            <input
+              value={numeroContrato}
+              onChange={(e) => setNumeroContrato(e.target.value)}
+              required
+              maxLength={100}
+              readOnly={Boolean(casaSeleccionada?.numeroContrato)}
+            />
           </label>
           <label>
             Emisión
@@ -609,6 +632,11 @@ function RegistroPanel({
             <input type="number" min="0" step="0.001" value={consumoGasM3} onChange={(e) => setConsumoGasM3(e.target.value)} required />
           </label>
         </div>
+        {!casaId && (
+          <p className="muted">
+            Se buscará una casa asociada a este contrato. Si no existe, se creará con la cantidad de personas indicada.
+          </p>
+        )}
         {error && <p className="error">{error}</p>}
         <button className="primary" type="submit" disabled={busy}>
           Guardar factura
