@@ -1,0 +1,281 @@
+:root {
+  color-scheme: dark;
+  --bg: #10140f;
+  --bg-2: #1a2218;
+  --ink: #f4f1e6;
+  --muted: #b7b2a4;
+  --line: rgba(244, 241, 230, 0.12);
+  --panel: rgba(26, 34, 24, 0.88);
+  --energia: #e2b15a;
+  --agua: #6fbfb2;
+  --alcantarillado: #8ea36a;
+  --gas: #e07a4c;
+  --total: #f4f1e6;
+  font-family: Outfit, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 420px at 8% -10%, rgba(226, 177, 90, 0.18), transparent 60%),
+    radial-gradient(700px 380px at 100% 0%, rgba(111, 191, 178, 0.14), transparent 55%),
+    var(--bg);
+}
+
+button, input, select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+}
+
+button.primary, .segment button.active {
+  background: var(--energia);
+  color: #1b1408;
+  border-color: transparent;
+  font-weight: 680;
+}
+
+button.ghost { opacity: 0.8; }
+button:disabled { opacity: 0.55; cursor: wait; }
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+input, select {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: rgba(16, 20, 15, 0.65);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  color: var(--ink);
+}
+
+h1, h2 {
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 560;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.eyebrow {
+  margin: 0 0 0.3rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: var(--energia);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 1.2rem;
+  backdrop-filter: blur(10px);
+}
+
+.error { color: #ffb4a2; margin: 0.2rem 0; }
+.notice { color: #b7e3c2; margin: 0.2rem 0; }
+.banner { padding: 0.8rem 1rem; border-radius: 14px; background: rgba(0, 0, 0, 0.25); }
+.muted { color: var(--muted); }
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 3rem;
+  align-items: center;
+  padding: 6vh 8vw;
+}
+
+.auth-copy h1 {
+  font-size: clamp(2.6rem, 5vw, 5rem);
+  line-height: 0.95;
+  max-width: 11ch;
+}
+
+.auth-copy p:last-child {
+  max-width: 38ch;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.auth-card { display: grid; gap: 0.9rem; }
+
+.segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.app { padding: 1.4rem clamp(1rem, 3vw, 2.4rem) 3rem; }
+
+.topbar, .hero, .chart-card header, .table-card header, .top-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.topbar { margin-bottom: 1.6rem; }
+.hero { margin-bottom: 1.2rem; align-items: end; }
+.hero h1 { font-size: clamp(2rem, 4vw, 3.4rem); }
+.hero p { margin: 0.3rem 0 0; color: var(--muted); }
+.house-filter { min-width: min(100%, 280px); }
+.api-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.8rem;
+  margin: 1rem 0;
+}
+
+.kpi {
+  padding: 1rem;
+  border-radius: 20px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.kpi span { color: var(--muted); font-size: 0.85rem; }
+.kpi strong { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.kpi small { color: var(--muted); }
+.kpi.consumoEnergiaKwh { box-shadow: inset 3px 0 var(--energia); }
+.kpi.consumoAcueductoM3 { box-shadow: inset 3px 0 var(--agua); }
+.kpi.consumoAlcantarilladoM3 { box-shadow: inset 3px 0 var(--alcantarillado); }
+.kpi.consumoGasM3 { box-shadow: inset 3px 0 var(--gas); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.chart {
+  height: 280px;
+  display: flex;
+  align-items: end;
+  gap: 0.7rem;
+  padding-top: 1rem;
+}
+
+.bar-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.bar {
+  width: 100%;
+  max-width: 46px;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: hidden;
+  border-radius: 12px 12px 4px 4px;
+  min-height: 4px;
+}
+
+.bar span { display: block; min-height: 2px; }
+.bar .consumoEnergiaKwh { background: var(--energia); }
+.bar .consumoAcueductoM3 { background: var(--agua); }
+.bar .consumoAlcantarilladoM3 { background: var(--alcantarillado); }
+.bar .consumoGasM3 { background: var(--gas); }
+
+.bar-col small { color: var(--muted); font-size: 0.72rem; text-transform: capitalize; }
+
+.legend { display: flex; gap: 0.8rem; flex-wrap: wrap; color: var(--muted); font-size: 0.8rem; }
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.legend span::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 99px;
+}
+
+.table-card { margin-top: 0.8rem; }
+.table-wrap { overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 480; font-size: 0.78rem; }
+
+.recommendations { margin-top: 0.8rem; }
+.recommendations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.recommendations-header span { color: var(--muted); font-size: 0.85rem; }
+.recommendation-list { display: grid; gap: 1rem; margin-top: 1rem; }
+.recommendation-house {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+.recommendation-house h3 { margin: 0; font-size: 1rem; }
+.recommendation-house > p { margin: 0.35rem 0 0.8rem; }
+.recommendation-services { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+.recommendation-service {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  padding: 0.8rem;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.18);
+  border-left: 3px solid var(--line);
+}
+.recommendation-service.consumoEnergiaKwh { border-left-color: var(--energia); }
+.recommendation-service.consumoAcueductoM3 { border-left-color: var(--agua); }
+.recommendation-service.consumoAlcantarilladoM3 { border-left-color: var(--alcantarillado); }
+.recommendation-service.consumoGasM3 { border-left-color: var(--gas); }
+.recommendation-service p { margin: 0; font-size: 0.88rem; line-height: 1.45; }
+.recommendation-service .muted { font-size: 0.8rem; }
+
+.registro {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1.4rem;
+  margin-bottom: 1rem;
+}
+
+.registro h2 { margin-bottom: 0.8rem; font-size: 1.4rem; }
+.registro > div, .registro form { display: grid; gap: 0.7rem; align-content: start; }
+.form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.7rem; }
+
+@media (max-width: 980px) {
+  .auth-shell, .grid, .registro, .kpis { grid-template-columns: 1fr; }
+  .recommendation-services { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr 1fr; }
+  .topbar, .hero { align-items: stretch; flex-direction: column; }
+}
