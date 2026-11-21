@@ -407,7 +407,11 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
               return (
                 <article key={item.casaId} className="recommendation-house">
                   <h3>{casa ? casaLabel(casa) : `Casa ${item.casaId}`}</h3>
-                  <p className="muted">Trimestre {item.trimestre} de {item.anio}</p>
+                  <p className="muted">
+                    Trimestre {item.trimestre} de {item.anio} · {item.cantidadFacturas}{" "}
+                    {item.cantidadFacturas === 1 ? "factura" : "facturas"} ·{" "}
+                    {item.esPreliminar ? "Periodo en curso" : "Periodo cerrado"}
+                  </p>
                   <div className="recommendation-services">
                     {recomendacionServicios.map(({ key, className }) => {
                       const consumo = item[key];
