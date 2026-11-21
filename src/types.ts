@@ -60,3 +60,11 @@ export type RecomendacionTrimestral = {
   alcantarillado: ConsumoRecomendacion;
   gas: ConsumoRecomendacion;
 };
+
+export type CargaDemo = {
+  numeroContrato: string;
+  facturasAgregadas: number;
+  mesesOmitidos: number;
+  totalMesesDemostracion: number;
+  aviso: string;
+};

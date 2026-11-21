@@ -1,10 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ApiError,
+  cargarDatosDemo,
   crearCasa,
   crearFactura,
   getCasas,
   getFacturas,
+  getLineaTiempoSvg,
   getRecomendacionesTrimestrales,
   login,
   register,
@@ -203,6 +205,17 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [timelineUrl, setTimelineUrl] = useState("");
+  const [timelineContract, setTimelineContract] = useState("");
+  const [timelineBusy, setTimelineBusy] = useState(false);
+  const casaSeleccionada = casas.find((casa) => String(casa.id) === casaId);
+
+  useEffect(() => {
+    return () => {
+      if (timelineUrl) URL.revokeObjectURL(timelineUrl);
+    };
+  }, [timelineUrl]);
 
   async function refresh() {
     setLoading(true);
@@ -230,6 +243,47 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
   useEffect(() => {
     void refresh();
   }, [session.token]);
+
+  async function cargarDemo() {
+    setDemoBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const resultado = await cargarDatosDemo(session.token);
+      setNotice(
+        `${resultado.aviso} Se agregaron ${resultado.facturasAgregadas} facturas; ` +
+          `${resultado.mesesOmitidos} meses ya tenían datos.`,
+      );
+      await refresh();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onLogout();
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "No se pudieron cargar los datos demo.");
+    } finally {
+      setDemoBusy(false);
+    }
+  }
+
+  async function cargarLineaTiempo() {
+    if (!casaSeleccionada?.numeroContrato) return;
+    setTimelineBusy(true);
+    setError("");
+    try {
+      const imagen = await getLineaTiempoSvg(session.token, casaSeleccionada.numeroContrato);
+      setTimelineUrl(URL.createObjectURL(imagen));
+      setTimelineContract(casaSeleccionada.numeroContrato);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onLogout();
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "No se pudo cargar la línea de tiempo.");
+    } finally {
+      setTimelineBusy(false);
+    }
+  }
 
   const visibles = useMemo(
     () =>
@@ -291,6 +345,11 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
         </div>
         <div className="top-actions">
           <span className="api-pill">127.0.0.1:5200</span>
+          {import.meta.env.DEV && (
+            <button type="button" className="ghost" onClick={() => void cargarDemo()} disabled={demoBusy}>
+              {demoBusy ? "Cargando demo…" : "Cargar datos demo"}
+            </button>
+          )}
           <button type="button" onClick={() => setShowForm((open) => !open)}>
             {showForm ? "Cerrar registro" : "Registrar consumo"}
           </button>
@@ -316,6 +375,35 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
             ))}
           </select>
         </label>
+      </section>
+
+      <section className="panel timeline-panel">
+        <header className="recommendations-header">
+          <div>
+            <h2>Línea de tiempo trimestral</h2>
+            <p className="muted">Hasta ocho trimestres, con escala independiente para cada servicio.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void cargarLineaTiempo()}
+            disabled={!casaSeleccionada?.numeroContrato || timelineBusy}
+          >
+            {timelineBusy ? "Generando…" : "Ver gráfico"}
+          </button>
+        </header>
+        {casaId === "todas" ? (
+          <p className="muted">Selecciona una casa para consultar su línea de tiempo.</p>
+        ) : !casaSeleccionada?.numeroContrato ? (
+          <p className="muted">La casa seleccionada aún no tiene número de contrato asociado.</p>
+        ) : timelineUrl && timelineContract === casaSeleccionada.numeroContrato ? (
+          <img
+            className="timeline-image"
+            src={timelineUrl}
+            alt={`Consumo trimestral del contrato ${timelineContract}`}
+          />
+        ) : (
+          <p className="muted">Genera el gráfico para ver los consumos trimestrales.</p>
+        )}
       </section>
 
       {error && <p className="error banner">{error}</p>}
