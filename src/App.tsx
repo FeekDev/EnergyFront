@@ -1,10 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ApiError,
+  cargarDatosDemo,
   crearCasa,
   crearFactura,
   getCasas,
   getFacturas,
+  getLineaTiempoSvg,
   getRecomendacionesTrimestrales,
   login,
   register,
@@ -32,19 +34,6 @@ const quantity = new Intl.NumberFormat("es-CO", {
 
 function formatConsumption(value: number, unit: string) {
   return `${quantity.format(value)} ${unit}`;
-}
-
-function monthKey(iso: string) {
-  const date = new Date(iso);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthLabel(key: string) {
-  const [year, month] = key.split("-").map(Number);
-  return new Date(year, month - 1, 1).toLocaleDateString("es-CO", {
-    month: "short",
-    year: "2-digit",
-  });
 }
 
 function readId(value: { id?: number; Id?: number }) {
@@ -134,14 +123,19 @@ function AuthScreen({ onSuccess }: { onSuccess: (session: Session) => void }) {
   return (
     <main className="auth-shell">
       <section className="auth-copy">
-        <p className="eyebrow">EnergyFront</p>
+        <p className="eyebrow">EnergyFront · Energía consciente</p>
         <h1>Mira cuánto consume cada casa, mes a mes.</h1>
         <p>
-          Energía, acueducto, alcantarillado y gas, leídos directo del backend en
-          127.0.0.1:5200.
+          Reúne tus consumos, entiende cómo cambian y encuentra oportunidades para ahorrar.
         </p>
       </section>
       <form className="panel auth-card" onSubmit={submit}>
+        <div className="auth-card-heading">
+          <h2>{mode === "login" ? "Bienvenido de nuevo" : "Crea tu cuenta"}</h2>
+          <p className="muted">
+            {mode === "login" ? "Ingresa para ver el consumo de tu hogar." : "Regístrate para empezar a organizar tus consumos."}
+          </p>
+        </div>
         <div className="segment">
           <button
             type="button"
@@ -185,9 +179,9 @@ function AuthScreen({ onSuccess }: { onSuccess: (session: Session) => void }) {
             autoComplete={mode === "login" ? "current-password" : "new-password"}
           />
         </label>
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error banner" role="alert">{error}</p>}
         <button className="primary" type="submit" disabled={busy}>
-          {busy ? "Conectando…" : mode === "login" ? "Ver consumos" : "Registrarme"}
+          {busy ? "Conectando…" : mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
         </button>
       </form>
     </main>
@@ -203,6 +197,17 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [timelineUrl, setTimelineUrl] = useState("");
+  const [timelineContract, setTimelineContract] = useState("");
+  const [timelineBusy, setTimelineBusy] = useState(false);
+  const casaSeleccionada = casas.find((casa) => String(casa.id) === casaId);
+
+  useEffect(() => {
+    return () => {
+      if (timelineUrl) URL.revokeObjectURL(timelineUrl);
+    };
+  }, [timelineUrl]);
 
   async function refresh() {
     setLoading(true);
@@ -231,6 +236,47 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
     void refresh();
   }, [session.token]);
 
+  async function cargarDemo() {
+    setDemoBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const resultado = await cargarDatosDemo(session.token);
+      setNotice(
+        `${resultado.aviso} Se agregaron ${resultado.facturasAgregadas} facturas; ` +
+          `${resultado.mesesOmitidos} meses ya tenían datos.`,
+      );
+      await refresh();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onLogout();
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "No se pudieron cargar los datos demo.");
+    } finally {
+      setDemoBusy(false);
+    }
+  }
+
+  async function cargarLineaTiempo() {
+    if (!casaSeleccionada?.numeroContrato) return;
+    setTimelineBusy(true);
+    setError("");
+    try {
+      const imagen = await getLineaTiempoSvg(session.token, casaSeleccionada.numeroContrato);
+      setTimelineUrl(URL.createObjectURL(imagen));
+      setTimelineContract(casaSeleccionada.numeroContrato);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onLogout();
+        return;
+      }
+      setError(err instanceof ApiError ? err.message : "No se pudo cargar la línea de tiempo.");
+    } finally {
+      setTimelineBusy(false);
+    }
+  }
+
   const visibles = useMemo(
     () =>
       facturas.filter((factura) => casaId === "todas" || String(factura.casaId) === casaId),
@@ -252,22 +298,6 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
     [visibles],
   );
 
-  const meses = useMemo(() => {
-    const map = new Map<string, Record<ServicioKey, number>>();
-    for (const factura of visibles) {
-      const key = monthKey(factura.fechaEmision);
-      const row = map.get(key) ?? {
-        consumoEnergiaKwh: 0,
-        consumoAcueductoM3: 0,
-        consumoAlcantarilladoM3: 0,
-        consumoGasM3: 0,
-      };
-      for (const servicio of SERVICIOS) row[servicio.key] += factura[servicio.key];
-      map.set(key, row);
-    }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [visibles]);
-
   const recomendacionesVisibles = recomendaciones.filter(
     (recomendacion) => casaId === "todas" || String(recomendacion.casaId) === casaId,
   );
@@ -285,12 +315,19 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
   return (
     <div className="app">
       <header className="topbar">
-        <div>
-          <p className="eyebrow">EnergyFront</p>
-          <strong>{session.nombre}</strong>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">E</span>
+          <div>
+            <p className="eyebrow">EnergyFront</p>
+            <strong>{session.nombre}</strong>
+          </div>
         </div>
         <div className="top-actions">
-          <span className="api-pill">127.0.0.1:5200</span>
+          {import.meta.env.DEV && (
+            <button type="button" className="ghost demo-button" onClick={() => void cargarDemo()} disabled={demoBusy}>
+              {demoBusy ? "Cargando demo…" : "Cargar datos demo"}
+            </button>
+          )}
           <button type="button" onClick={() => setShowForm((open) => !open)}>
             {showForm ? "Cerrar registro" : "Registrar consumo"}
           </button>
@@ -302,11 +339,12 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
 
       <section className="hero">
         <div>
+          <p className="eyebrow">Panel de control</p>
           <h1>Consumos del hogar</h1>
-          <p>{session.correoElectronico}</p>
+          <p>Un resumen claro de tus servicios y su evolución.</p>
         </div>
         <label className="house-filter">
-          Casa
+          Filtrar por casa
           <select value={casaId} onChange={(e) => setCasaId(e.target.value)}>
             <option value="todas">Todas las casas</option>
             {casas.map((casa) => (
@@ -318,8 +356,37 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
         </label>
       </section>
 
-      {error && <p className="error banner">{error}</p>}
-      {notice && <p className="notice banner">{notice}</p>}
+      {error && <p className="error banner" role="alert">{error}</p>}
+      {notice && <p className="notice banner" role="status">{notice}</p>}
+
+      <section className="panel timeline-panel">
+        <header className="recommendations-header">
+          <div>
+            <h2>Línea de tiempo trimestral</h2>
+            <p className="muted">Hasta ocho trimestres, con escala independiente para cada servicio.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void cargarLineaTiempo()}
+            disabled={!casaSeleccionada?.numeroContrato || timelineBusy}
+          >
+            {timelineBusy ? "Generando…" : "Ver gráfico"}
+          </button>
+        </header>
+        {casaId === "todas" ? (
+          <p className="muted">Selecciona una casa para consultar su línea de tiempo.</p>
+        ) : !casaSeleccionada?.numeroContrato ? (
+          <p className="muted">La casa seleccionada aún no tiene número de contrato asociado.</p>
+        ) : timelineUrl && timelineContract === casaSeleccionada.numeroContrato ? (
+          <img
+            className="timeline-image"
+            src={timelineUrl}
+            alt={`Consumo trimestral del contrato ${timelineContract}`}
+          />
+        ) : (
+          <p className="muted">Genera el gráfico para ver los consumos trimestrales.</p>
+        )}
+      </section>
 
       {showForm && (
         <RegistroPanel
@@ -340,53 +407,22 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
         />
       )}
 
-      <section className="kpis">
-        {SERVICIOS.map((servicio) => (
-          <article key={servicio.key} className={`kpi ${servicio.key}`}>
-            <span>{servicio.label} · {servicio.unit}</span>
-            <strong>{quantity.format(consumosPorServicio[servicio.key] ?? 0)}</strong>
-          </article>
-        ))}
-      </section>
-
-      <section className="grid">
-        {SERVICIOS.map((servicio) => {
-          const maxConsumo = Math.max(1, ...meses.map(([, row]) => row[servicio.key]));
-          return (
-            <article key={servicio.key} className="panel chart-card">
-              <header>
-                <h2>{servicio.label} mensual <span className="muted">({servicio.unit})</span></h2>
-              </header>
-              {loading ? (
-                <p className="muted">Cargando consumos…</p>
-              ) : meses.length === 0 ? (
-                <p className="muted">Aún no hay consumos registrados.</p>
-              ) : (
-                <div
-                  className="chart"
-                  role="img"
-                  aria-label={`${servicio.label} mensual en ${servicio.unit}`}
-                >
-                  {meses.map(([key, row]) => (
-                    <div
-                      key={key}
-                      className="bar-col"
-                      title={`${monthLabel(key)} · ${formatConsumption(row[servicio.key], servicio.unit)}`}
-                    >
-                      <div
-                        className="bar"
-                        style={{ height: `${(row[servicio.key] / maxConsumo) * 100}%` }}
-                      >
-                        <span className={servicio.key} />
-                      </div>
-                      <small>{monthLabel(key)}</small>
-                    </div>
-                  ))}
-                </div>
-              )}
+      <section className="consumption-section" aria-labelledby="consumption-heading">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Resumen</p>
+            <h2 id="consumption-heading">Consumo acumulado</h2>
+          </div>
+          <span className="muted">{visibles.length} {visibles.length === 1 ? "factura" : "facturas"}</span>
+        </div>
+        <section className="kpis" aria-label="Consumo acumulado por servicio">
+          {SERVICIOS.map((servicio) => (
+            <article key={servicio.key} className={`kpi ${servicio.key}`}>
+              <span>{servicio.label} · {servicio.unit}</span>
+              <strong>{quantity.format(consumosPorServicio[servicio.key] ?? 0)}</strong>
             </article>
-          );
-        })}
+          ))}
+        </section>
       </section>
 
       <section className="panel recommendations">
@@ -395,9 +431,9 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
           <span>{recomendacionesVisibles.length} casas</span>
         </header>
         {loading ? (
-          <p className="muted">Cargando recomendaciones…</p>
+          <p className="empty-state" role="status">Cargando recomendaciones…</p>
         ) : recomendacionesVisibles.length === 0 ? (
-          <p className="muted">
+          <p className="empty-state">
             No hay recomendaciones disponibles. Registra consumos para generar una referencia trimestral.
           </p>
         ) : (
@@ -410,7 +446,9 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
                   <p className="muted">
                     Trimestre {item.trimestre} de {item.anio} · {item.cantidadFacturas}{" "}
                     {item.cantidadFacturas === 1 ? "factura" : "facturas"} ·{" "}
-                    {item.esPreliminar ? "Periodo en curso" : "Periodo cerrado"}
+                    <span className={`period-badge ${item.esPreliminar ? "preliminary" : ""}`}>
+                      {item.esPreliminar ? "En curso" : "Cerrado"}
+                    </span>
                   </p>
                   <div className="recommendation-services">
                     {recomendacionServicios.map(({ key, className }) => {
@@ -426,8 +464,12 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
                                 consumo.consumoTrimestreAnterior,
                                 consumo.unidad,
                               )}
-                              {consumo.variacionPorcentual !== null &&
-                                ` · ${quantity.format(consumo.variacionPorcentual)}%`}
+                              {consumo.variacionPorcentual !== null && (
+                                <span className={`variation ${consumo.variacionPorcentual > 0 ? "up" : consumo.variacionPorcentual < 0 ? "down" : ""}`}>
+                                  {consumo.variacionPorcentual > 0 ? "↑" : consumo.variacionPorcentual < 0 ? "↓" : "→"}{" "}
+                                  {quantity.format(Math.abs(consumo.variacionPorcentual))}%
+                                </span>
+                              )}
                             </span>
                           )}
                           <p>{consumo.recomendacion}</p>
@@ -445,10 +487,10 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
       <section className="panel table-card">
         <header>
           <h2>Facturas</h2>
-          <span>{visibles.length} registros</span>
+          <span>{visibles.length} {visibles.length === 1 ? "registro" : "registros"}</span>
         </header>
         <div className="table-wrap">
-          <table>
+          <table aria-label="Facturas y consumos registrados">
             <thead>
               <tr>
                 <th>Emisión</th>
@@ -462,7 +504,13 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
               </tr>
             </thead>
             <tbody>
-              {[...visibles]
+              {visibles.length === 0 ? (
+                <tr>
+                  <td className="table-empty" colSpan={8}>
+                    {loading ? "Cargando facturas…" : "No hay facturas para esta selección."}
+                  </td>
+                </tr>
+              ) : [...visibles]
                 .sort((a, b) => b.fechaEmision.localeCompare(a.fechaEmision))
                 .map((factura) => {
                   const casa = casas.find((item) => item.id === factura.casaId);
@@ -637,7 +685,7 @@ function RegistroPanel({
             Se buscará una casa asociada a este contrato. Si no existe, se creará con la cantidad de personas indicada.
           </p>
         )}
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error" role="alert">{error}</p>}
         <button className="primary" type="submit" disabled={busy}>
           Guardar factura
         </button>

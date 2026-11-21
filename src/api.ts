@@ -1,4 +1,10 @@
-import type { Casa, Factura, RecomendacionTrimestral, Session } from "./types";
+import type {
+  CargaDemo,
+  Casa,
+  Factura,
+  RecomendacionTrimestral,
+  Session,
+} from "./types";
 
 export const API_BASE = "http://127.0.0.1:5200";
 
@@ -99,6 +105,27 @@ export function getRecomendacionesTrimestrales(token: string) {
     {},
     token,
   );
+}
+
+export function cargarDatosDemo(token: string) {
+  return request<CargaDemo>("/api/Factura/datos-demo", { method: "POST" }, token);
+}
+
+export async function getLineaTiempoSvg(token: string, numeroContrato: string) {
+  let response: Response;
+  try {
+    response = await fetch(
+      `${API_BASE}/api/Factura/linea-tiempo/${encodeURIComponent(numeroContrato)}.svg`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+  } catch {
+    throw new ApiError(0, "No se pudo conectar con el backend en http://127.0.0.1:5200.");
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await readError(response));
+  }
+  return response.blob();
 }
 
 export function crearFactura(
