@@ -17,6 +17,7 @@ export type Casa = {
   id: number;
   cantidadPersonas: string;
   isComplete: boolean;
+  numeroContrato?: string | null;
   usuarioId?: number | null;
   direccion?: Direccion | null;
 };
