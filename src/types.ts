@@ -17,6 +17,7 @@ export type Casa = {
   id: number;
   cantidadPersonas: string;
   isComplete: boolean;
+  numeroContrato?: string | null;
   usuarioId?: number | null;
   direccion?: Direccion | null;
 };
@@ -52,6 +53,8 @@ export type RecomendacionTrimestral = {
   casaId: number;
   anio: number;
   trimestre: number;
+  cantidadFacturas: number;
+  esPreliminar: boolean;
   energia: ConsumoRecomendacion;
   acueducto: ConsumoRecomendacion;
   alcantarillado: ConsumoRecomendacion;
